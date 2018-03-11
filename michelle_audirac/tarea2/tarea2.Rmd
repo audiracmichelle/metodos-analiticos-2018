@@ -1,0 +1,125 @@
+---
+title: "Similitud"
+author: "Michelle Audirac"
+date: "primavera 2018"
+output: html_document
+---
+
+```{r setup}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+library(readr)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(tidyverse)
+library(textreuse)
+```
+
+1. Considera la siguiente matriz de tejas-documentos:
+
+```{r}
+mat <- matrix(c(0,1,0,1,0,1,0,0,1,0,0,1,0,0,1,0,0,0,1,1,1,0,0,0),
+              nrow = 6, byrow = TRUE)
+colnames(mat) <- c('d_1','d_2','d_3','d_4')
+rownames(mat) <- c(0,1,2,3,4,5)
+mat
+```
+
+  - Sin permutar esta matriz, calcula la matriz de firmas minhash usando las siguientes funciones
+  hash: $h_1(x) = 2x+1\mod 6$, $h_2(x) = 3x+2\mod 6$, $h_3(x)=5x+2\mod 6$.
+Recuerda que $a\mod 6$ es el residuo que se obtiene al dividir a entre 6, por ejemplo $14\mod 6 = 2$, y usa la numeración de renglones comenzando en 0.
+
+```{r}
+h_1 <- function(x) { ( 2 * x + 1) %% 6}
+h_2 <- function(x) { ( 3 * x + 2) %% 6}
+h_3 <- function(x) { ( 5 * x + 2) %% 6}
+num_hashes <- 3
+
+hash_1 <- sapply(c(0,1,2,3,4,5), h_1)
+hash_2 <- sapply(c(0,1,2,3,4,5), h_2)
+hash_3 <- sapply(c(0,1,2,3,4,5), h_3)
+hashes <- cbind(hash_1, hash_2, hash_3)
+hashes
+```
+
+* algoritmo sin permutar la matriz en `calc_firmas`. En este algoritmo se asigna `Inf` inicialmente a la matriz de firmas.
+
+```{r}
+calc_firmas <- function(mat_df, permutaciones){
+    firmas <- list()
+    num_hashes <- ncol(permutaciones)
+    firmas <- sapply(1:ncol(mat_df), function(r) rep(Inf, num_hashes))
+    for(r in 1:nrow(mat_df)){
+        indices <- mat_df[r,] > 0
+        firmas[, indices] = pmin(firmas[, indices], permutaciones[r, ])
+    }
+    firmas
+}
+```
+
+
+```{r}
+mat %>% as.data.frame %>% calc_firmas(hashes)
+```
+
+  - Compara tu resultado usando el algoritmo por renglón que vimos en clase,
+    y usando el algoritmo por columna (el mínimo hash de los números de renglón que tienen un 1).
+  - ¿Cuál de estas funciones hash son verdaderas permutaciones?
+  - ¿Qué tan cerca están las similitudes de Jaccard estimadas por minhash de las verdaderas similitudes?
+```{r, collapse = TRUE}
+mean(firmas_df$d_1 == firmas_df$d_2)
+mean(firmas_df$d_1 == firmas_df$d_3)
+mean(firmas_df$d_1 == firmas_df$d_4)
+mean(firmas_df$d_2 == firmas_df$d_3)
+mean(firmas_df$d_2 == firmas_df$d_4)
+mean(firmas_df$d_3 == firmas_df$d_4)
+```
+
+```{r}
+sim_jaccard <- function(a, b){
+    length(intersect(a, b)) / length(union(a, b))
+}
+
+sim_jaccard(firmas_df$d_1, firmas_df$d_2)
+sim_jaccard(firmas_df$d_1, firmas_df$d_3)
+sim_jaccard(firmas_df$d_1, firmas_df$d_4)
+sim_jaccard(firmas_df$d_2, firmas_df$d_3)
+sim_jaccard(firmas_df$d_2, firmas_df$d_4)
+sim_jaccard(firmas_df$d_3, firmas_df$d_4)
+```
+
+
+
+
+2. Calcula la similitud de jaccard de las cadenas "Este es el ejemplo 1" y "Este es el ejemplo 2", usando tejas de tamaño 3.
+
+```{r}
+shingle_chars <- function(string, lowercase = FALSE, k = 4){
+    # produce shingles (con repeticiones)
+    if(lowercase) {
+      string <- str_to_lower(string)
+    }
+    shingles <- seq(1, nchar(string) - k + 1) %>%
+        map_chr(function(x) substr(string, x, x + k - 1))
+    shingles
+  }
+```
+
+```{r}
+tejas <- list()
+tejas[[1]] <- shingle_chars("Este es el ejemplo 1", k = 3)
+tejas[[2]] <- shingle_chars("Este es el ejemplo 2", k = 3)
+tejas
+```
+
+```{r}
+sim_jaccard <- function(a, b){
+    length(intersect(a, b)) / length(union(a, b))
+}
+
+sim_jaccard(tejas[[1]], tejas[[2]])
+```
+
